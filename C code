@@ -1,0 +1,321 @@
+include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#define MAX 100
+#define DOCS 6
+
+// ================= VISIT STACK =================
+typedef struct {
+    char doctorName[50];
+    char date[20];
+} Visit;
+
+typedef struct {
+    Visit arr[20];
+    int top;
+} VisitStack;
+
+void pushVisit(VisitStack *vs, char doctor[], char date[]) {
+    if (vs->top < 19) {
+        vs->top++;
+        strcpy(vs->arr[vs->top].doctorName, doctor);
+        strcpy(vs->arr[vs->top].date, date);
+    }
+    else{
+        printf("visit history full!\n");
+    }
+}
+// ================= PATIENT =================
+typedef struct {
+    int id;
+    char name[50];
+    int age;
+    char condition[100]; 
+    int severity;
+    char type[20];
+    int doctorIndex;
+
+    VisitStack history;
+} Patient;
+
+// ================= STACK =================
+typedef struct {
+    Patient arr[MAX];
+    int top;
+} Stack;
+
+void push(Stack *s, Patient p) {
+    if (s->top < MAX - 1)
+        s->arr[++(s->top)] = p;
+    else{
+        printf("patient's registry full!\n");
+    }
+}
+// 🔹 NEW: Find patient by name
+int findPatient(Stack *s, char name[]) {
+    for (int i = 0; i <= s->top; i++) {
+        if (strcmp(s->arr[i].name, name) == 0) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+// ================= FIFO QUEUE =================
+typedef struct {
+    Patient arr[MAX];
+    int front, rear;
+} Queue;
+
+void enqueue(Queue *q, Patient p) {
+    if (q->rear < MAX - 1)
+        q->arr[++(q->rear)] = p;
+    else
+        printf("Outpatient queue full!\n");
+}
+
+Patient dequeue(Queue *q) {
+    if (q->front > q->rear) {
+        Patient empty = {0};
+        return empty;
+}
+    return q->arr[(q->front)++];
+}
+
+// ================= PRIORITY QUEUE =================
+typedef struct {
+    Patient heap[MAX];
+    int size;
+} PriorityQueue;
+
+void swap(Patient *a, Patient *b) {
+    Patient t = *a; *a = *b; *b = t;
+}
+
+void heapifyUp(PriorityQueue *pq, int i) {
+    while (i > 0) {
+        int p = (i - 1) / 2;
+        if (pq->heap[i].severity <= pq->heap[p].severity) break;
+        swap(&pq->heap[i], &pq->heap[p]);
+        i = p;
+    }
+}
+
+void heapifyDown(PriorityQueue *pq, int i) {
+    int largest = i;
+    int l = 2*i+1, r = 2*i+2;
+
+    if (l < pq->size && pq->heap[l].severity > pq->heap[largest].severity)
+        largest = l;
+    if (r < pq->size && pq->heap[r].severity > pq->heap[largest].severity)
+        largest = r;
+
+    if (largest != i) {
+        swap(&pq->heap[i], &pq->heap[largest]);
+        heapifyDown(pq, largest);
+    }
+}
+
+void enqueuePQ(PriorityQueue *pq, Patient p) {
+    if(pq->size<MAX)
+    {
+    pq->heap[pq->size] = p;
+    heapifyUp(pq, pq->size);
+    pq->size++;
+    }
+    else
+    {
+        printf("Emergency queue full!\n");
+    }
+}
+
+Patient dequeuePQ(PriorityQueue *pq) {
+    if (pq->size == 0) {
+        Patient empty = {0};
+        return empty;
+    }
+    Patient top = pq->heap[0];
+    pq->heap[0] = pq->heap[--pq->size];
+    heapifyDown(pq, 0);
+    return top;
+}
+
+// ================= DOCTORS =================
+typedef struct {
+    char name[50];
+    char specialty[50];
+    int count;
+} Doctor;
+
+Doctor doctors[DOCS] = {
+    {"Dr. Sarah Chen", "Cardiologist", 0},
+    {"Dr. James Okafor", "Neurologist", 0},
+    {"Dr. Priya Sharma", "Orthopedic", 0},
+    {"Dr. Luis Mendez", "General Surgeon", 0},
+    {"Dr. Amira Hassan", "Pediatrician", 0},
+    {"Dr. Kenji Tanaka", "Pulmonologist", 0}
+};
+
+// ================= DISPLAY DOCTORS =================
+void showDoctors() {
+    printf("\nAvailable Doctors:\n");
+    for (int i = 0; i < DOCS; i++) {
+        printf("%d. %s (%s)\n", i, doctors[i].name, doctors[i].specialty);
+    }
+}
+
+// ================= MAIN =================
+int main() {
+
+    PriorityQueue emergency = {.size = 0};
+    Queue outpatient = {.front = 0, .rear = -1};
+    Stack registered = {.top = -1};
+
+    int choice, id = 0;
+
+    while (1) {
+        printf("\n===== HOSPITAL MENU =====\n");
+        printf("1. Add Emergency Patient\n");
+        printf("2. Add Outpatient\n");
+        printf("3. Admit Emergency Patient\n");
+        printf("4. Serve Outpatient\n");
+        printf("5. Show Registered Patients + History\n");
+        printf("6. Show Doctors & Patient Count\n");
+        printf("7. Exit\n");
+        printf("Enter choice: ");
+        scanf("%d", &choice);
+
+        if (choice == 1 || choice == 2) {
+
+            Patient p;
+            char name[50];
+            printf("Enter Name: ");
+            scanf(" %[^\n]", name);
+
+            int index = findPatient(&registered, name);
+
+            if (index != -1) {
+                // Existing patient
+                p = registered.arr[index];
+                printf("Existing patient found. Adding new visit...\n");
+            } else {
+                // New patient
+                p.id = ++id;
+                strcpy(p.name, name);
+
+                printf("Enter Age: ");
+                scanf("%d", &p.age);
+
+                printf("Enter Condition: ");
+                scanf(" %[^\n]", p.condition);
+
+                p.history.top = -1;
+            }
+
+            showDoctors();
+            printf("Select Doctor Index: ");
+            scanf("%d", &p.doctorIndex);
+            if(p.doctorIndex<0 || p.doctorIndex>=DOCS)
+            {
+                printf("Invalid doctor selection!\n");
+                continue;
+            }
+
+            char date[20];
+            printf("Enter Visit Date (dd-mm-yyyy): ");
+            scanf("%19s", date);
+
+            pushVisit(&p.history, doctors[p.doctorIndex].name, date);
+
+            if (choice == 1) {
+                strcpy(p.type, "emergency");
+                printf("Enter Severity (1-10): ");
+                scanf("%d", &p.severity);
+                if(p.severity<1 || p.severity>10)
+                {
+                    printf("Invalid severity! Must be 1-10\n");
+                    continue;
+                }
+
+                enqueuePQ(&emergency, p);
+                printf("Added to Emergency Queue\n");
+            } else {
+                strcpy(p.type, "outpatient");
+                p.severity = 0;
+
+                enqueue(&outpatient, p);
+                printf("Added to Outpatient Queue\n");
+            }
+
+            // 🔹 Update or insert patient
+            if (index != -1) {
+                registered.arr[index] = p;
+            } else {
+                push(&registered, p);
+            }
+
+            doctors[p.doctorIndex].count++;
+        }
+
+        else if (choice == 3) {
+            Patient p = dequeuePQ(&emergency);
+            if (p.id == 0)
+                printf("No emergency patients\n");
+            else
+                printf("Admitted: %s (Severity %d, Disease: %s) -> %s (%s)\n",
+                        p.name, p.severity, p.condition,
+                        doctors[p.doctorIndex].name,
+                        doctors[p.doctorIndex].specialty);
+        }
+
+        else if (choice == 4) {
+            Patient p = dequeue(&outpatient);
+            if (p.id == 0)
+                printf("No outpatient patients\n");
+            else
+                printf("Served: %s (Disease: %s) -> %s (%s)\n",
+                        p.name, p.condition,
+                        doctors[p.doctorIndex].name,
+                        doctors[p.doctorIndex].specialty);
+        }
+
+        else if (choice == 5) {
+            printf("\nRegistered Patients (Stack with History):\n");
+
+            for (int i = registered.top; i >= 0; i--) {
+                Patient temp = registered.arr[i];
+
+                printf("\nPatient: %s (%s) - Disease: %s\n", temp.name, temp.type, temp.condition);
+
+                printf("Visit History:\n");
+                for (int j = temp.history.top; j >= 0; j--) {
+                    printf("Doctor: %s | Date: %s\n",
+                           temp.history.arr[j].doctorName,
+                           temp.history.arr[j].date);
+                }
+            }
+        }
+
+        else if (choice == 6) {
+            printf("\nDoctor Patient Count:\n");
+            for (int i = 0; i < DOCS; i++) {
+                printf("%s (%s) -> %d patients\n",
+                       doctors[i].name,
+                       doctors[i].specialty,
+                       doctors[i].count);
+            }
+        }
+
+        else if (choice == 7) {
+            break;
+        }
+
+        else {
+            printf("Invalid choice\n");
+        }
+    }
+
+    return 0;
+}
+
